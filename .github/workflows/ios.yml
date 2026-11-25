@@ -10,6 +10,7 @@ on:
 jobs:
   build:
     runs-on: macos-14
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -20,17 +21,22 @@ jobs:
         working-directory: ios
         run: xcodegen generate
 
-      - name: 编译（关签名）
+      - name: 编译 Release（关闭签名）
         working-directory: ios
         run: |
-          set -o pipefail
-          xcodebuild -project QingTV.xcodeproj \
+          xcodebuild \
+            -project QingTV.xcodeproj \
             -scheme QingTV \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            build | xcpretty || xcodebuild -project QingTV.xcodeproj -scheme QingTV -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: 检查产物
+        run: ls -la ios/build/Build/Products/Release-iphoneos/
 
       - name: 打成 ipa
         run: |
@@ -39,8 +45,9 @@ jobs:
           zip -qry QingTV.ipa Payload
           ls -lh QingTV.ipa
 
-      - name: 上传产物
+      - name: 上传 ipa
         uses: actions/upload-artifact@v4
         with:
           name: QingTV-ipa
           path: QingTV.ipa
+          if-no-files-found: error
